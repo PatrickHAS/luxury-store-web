@@ -85,3 +85,9 @@ export async function updateProduct(
     body: JSON.stringify(data),
   });
 }
+
+export async function deleteProduct(id: number): Promise<void> {
+  await apiFetch<void>(`/products/${id}`, {
+    method: "DELETE",
+  });
+}

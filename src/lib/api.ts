@@ -21,5 +21,9 @@ export async function apiFetch<T>(
     throw new Error(error.message || "Erro na requisição");
   }
 
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
   return response.json();
 }

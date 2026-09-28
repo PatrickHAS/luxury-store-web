@@ -1,9 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, useRouter } from "next/navigation";
 
-import { getProductById } from "@/services/ProductService";
+import { deleteProduct, getProductById } from "@/services/ProductService";
+
+import { Button } from "@/components/ui/button";
 
 export default function ProductDetailsPage() {
   const params = useParams();
@@ -19,6 +21,37 @@ export default function ProductDetailsPage() {
     queryFn: () => getProductById(id),
     enabled: Number.isInteger(id) && id > 0,
   });
+
+  const router = useRouter();
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: () => deleteProduct(id),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+
+      queryClient.removeQueries({
+        queryKey: ["product", id],
+      });
+
+      router.push("/products");
+    },
+  });
+
+  function handleDelete() {
+    const confirmed = window.confirm(
+      "Tem certeza que deseja excluir este produto?",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    deleteMutation.mutate();
+  }
 
   if (isLoading) {
     return <p>Carregando produto...</p>;
@@ -54,6 +87,24 @@ export default function ProductDetailsPage() {
         <p>
           <strong>Categoria:</strong> {product.categoryId}
         </p>
+      </div>
+      <div className="mt-6 flex gap-3">
+        <Button onClick={() => router.push(`/products/${id}/edit`)}>
+          Editar produto
+        </Button>
+
+        <Button
+          variant="destructive"
+          onClick={handleDelete}
+          disabled={deleteMutation.isPending}
+        >
+          {deleteMutation.isPending ? "Excluindo..." : "Excluir produto"}
+        </Button>
+        {deleteMutation.isError && (
+          <p className="mt-3 text-sm text-red-500">
+            {deleteMutation.error.message}
+          </p>
+        )}
       </div>
     </main>
   );
