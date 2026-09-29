@@ -1,13 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useSession } from "next-auth/react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 import {
   getProductById,
@@ -34,6 +44,15 @@ export default function EditProductPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const { data: session, status } = useSession();
+
+  const isAdmin = session?.user?.role === "ADMIN";
+
+  useEffect(() => {
+    if (status === "authenticated" && !isAdmin) {
+      router.replace("/products");
+    }
+  }, [status, isAdmin, router]);
 
   const id = Number(params?.id);
 
@@ -105,175 +124,297 @@ export default function EditProductPage() {
 
   if (isLoadingProduct) {
     return (
-      <main className="p-8">
-        <p>Carregando produto...</p>
+      <main className="min-h-screen bg-stone-50">
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+          <div className="animate-pulse space-y-6">
+            <div className="h-5 w-32 rounded bg-stone-200" />
+            <div className="h-10 w-64 rounded bg-stone-200" />
+            <div className="h-96 rounded-xl bg-stone-200" />
+          </div>
+        </div>
       </main>
     );
   }
 
   if (isProductError || !product) {
     return (
-      <main className="p-8">
-        <p>Produto não encontrado.</p>
+      <main className="min-h-screen bg-stone-50">
+        <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+          <Card>
+            <CardContent className="p-8 text-center">
+              <h1 className="text-xl font-semibold text-stone-900">
+                Produto não encontrado
+              </h1>
+
+              <p className="mt-2 text-sm text-stone-500">
+                Não foi possível carregar o produto que você deseja editar.
+              </p>
+
+              <Link href="/products" className="mt-6 inline-block">
+                <Button type="button" variant="outline">
+                  Voltar para produtos
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
       </main>
     );
   }
 
+  if (status === "loading") {
+    return (
+      <main className="min-h-screen bg-stone-50">
+        <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="h-96 animate-pulse rounded-xl border border-stone-200 bg-white" />
+        </div>
+      </main>
+    );
+  }
+
+  if (!isAdmin) {
+    return null;
+  }
+
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="mb-6 text-2xl font-bold">Editar produto</h1>
+    <main className="min-h-screen bg-stone-50">
+      <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Navegação */}
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <div className="space-y-2">
-          <Label htmlFor="name">Nome</Label>
+        <Link
+          href={`/products/${id}`}
+          className="text-sm font-medium text-stone-500 transition hover:text-stone-900"
+        >
+          ← Voltar para o produto
+        </Link>
 
-          <Controller
-            name="name"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="name"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-              />
-            )}
-          />
+        {/* Cabeçalho */}
 
-          {errors.name && (
-            <p className="text-sm text-red-500">{errors.name.message}</p>
-          )}
+        <div className="mb-8 mt-6">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.25em] text-amber-700">
+            Luxury Store
+          </p>
+
+          <h1 className="text-3xl font-semibold tracking-tight text-stone-950">
+            Editar produto
+          </h1>
+
+          <p className="mt-2 text-sm text-stone-500">
+            Atualize as informações de{" "}
+            <span className="font-medium text-stone-700">{product.name}</span>.
+          </p>
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="description">Descrição</Label>
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle className="text-lg">Informações do produto</CardTitle>
 
-          <Controller
-            name="description"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="description"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-              />
-            )}
-          />
+            <CardDescription>
+              Altere somente os campos necessários e salve as alterações.
+            </CardDescription>
+          </CardHeader>
 
-          {errors.description && (
-            <p className="text-sm text-red-500">{errors.description.message}</p>
-          )}
-        </div>
+          <CardContent className="p-6">
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+              {/* Nome */}
 
-        <div className="space-y-2">
-          <Label htmlFor="price">Preço</Label>
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome do produto</Label>
 
-          <Controller
-            name="price"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="price"
-                type="number"
-                step="0.01"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-              />
-            )}
-          />
+                <Controller
+                  name="name"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="name"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
 
-          {errors.price && (
-            <p className="text-sm text-red-500">{errors.price.message}</p>
-          )}
-        </div>
+                {errors.name && (
+                  <p className="text-sm text-red-600">{errors.name.message}</p>
+                )}
+              </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="stock">Estoque</Label>
+              {/* Descrição */}
 
-          <Controller
-            name="stock"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="stock"
-                type="number"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-              />
-            )}
-          />
+              <div className="space-y-2">
+                <Label htmlFor="description">Descrição</Label>
 
-          {errors.stock && (
-            <p className="text-sm text-red-500">{errors.stock.message}</p>
-          )}
-        </div>
+                <Controller
+                  name="description"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="description"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
 
-        <div className="space-y-2">
-          <Label htmlFor="sku">SKU</Label>
+                {errors.description && (
+                  <p className="text-sm text-red-600">
+                    {errors.description.message}
+                  </p>
+                )}
+              </div>
 
-          <Controller
-            name="sku"
-            control={control}
-            render={({ field }) => (
-              <Input
-                id="sku"
-                placeholder="ANEL-OURO-003"
-                value={field.value ?? ""}
-                onChange={field.onChange}
-              />
-            )}
-          />
+              {/* Preço + Estoque */}
 
-          {errors.sku && (
-            <p className="text-sm text-red-500">{errors.sku.message}</p>
-          )}
-        </div>
+              <div className="grid gap-5 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="price">Preço (R$)</Label>
 
-        <div className="space-y-2">
-          <Label>Categoria</Label>
+                  <Controller
+                    name="price"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
 
-          <Controller
-            name="categoryId"
-            control={control}
-            render={({ field }) => (
-              <Select
-                value={field.value ?? ""}
-                onValueChange={field.onChange}
-                disabled={isLoadingCategories}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione uma categoria" />
-                </SelectTrigger>
+                  {errors.price && (
+                    <p className="text-sm text-red-600">
+                      {errors.price.message}
+                    </p>
+                  )}
+                </div>
 
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          />
+                <div className="space-y-2">
+                  <Label htmlFor="stock">Estoque</Label>
 
-          {errors.categoryId && (
-            <p className="text-sm text-red-500">{errors.categoryId.message}</p>
-          )}
-        </div>
+                  <Controller
+                    name="stock"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        id="stock"
+                        type="number"
+                        min="0"
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                      />
+                    )}
+                  />
 
-        {updateMutation.isError && (
-          <p className="text-sm text-red-500">{updateMutation.error.message}</p>
-        )}
+                  {errors.stock && (
+                    <p className="text-sm text-red-600">
+                      {errors.stock.message}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-        <div className="flex gap-3">
-          <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancelar
-          </Button>
+              {/* SKU */}
 
-          <Button type="submit" disabled={updateMutation.isPending}>
-            {updateMutation.isPending ? "Salvando..." : "Salvar alterações"}
-          </Button>
-        </div>
-      </form>
+              <div className="space-y-2">
+                <Label htmlFor="sku">SKU</Label>
+
+                <Controller
+                  name="sku"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      id="sku"
+                      placeholder="ANEL-OURO-003"
+                      value={field.value ?? ""}
+                      onChange={field.onChange}
+                    />
+                  )}
+                />
+
+                {errors.sku && (
+                  <p className="text-sm text-red-600">{errors.sku.message}</p>
+                )}
+              </div>
+
+              {/* Categoria */}
+
+              <div className="space-y-2">
+                <Label>Categoria</Label>
+
+                <Controller
+                  name="categoryId"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      value={field.value ?? ""}
+                      onValueChange={field.onChange}
+                      disabled={isLoadingCategories}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            isLoadingCategories
+                              ? "Carregando categorias..."
+                              : "Selecione uma categoria"
+                          }
+                        />
+                      </SelectTrigger>
+
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem
+                            key={category.id}
+                            value={String(category.id)}
+                          >
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+
+                {errors.categoryId && (
+                  <p className="text-sm text-red-600">
+                    {errors.categoryId.message}
+                  </p>
+                )}
+              </div>
+
+              {/* Erro da API */}
+
+              {updateMutation.isError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                  <p className="text-sm text-red-700">
+                    {updateMutation.error.message}
+                  </p>
+                </div>
+              )}
+
+              {/* Ações */}
+
+              <div className="flex flex-col-reverse gap-3 border-t border-stone-200 pt-6 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={updateMutation.isPending}
+                  onClick={() => router.push(`/products/${id}`)}
+                >
+                  Cancelar
+                </Button>
+
+                <Button type="submit" disabled={updateMutation.isPending}>
+                  {updateMutation.isPending
+                    ? "Salvando..."
+                    : "Salvar alterações"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
     </main>
   );
 }
