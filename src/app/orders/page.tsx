@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
-import { getOrders } from "@/services/OrderService";
+import { getOrders, cancelOrder } from "@/services/OrderService";
 
 const currencyFormatter = new Intl.NumberFormat("pt-BR", {
   style: "currency",
@@ -35,13 +35,71 @@ function getStatusLabel(status: string) {
   return labels[status] ?? status;
 }
 
+function getStatusClass(status: string) {
+  const classes: Record<string, string> = {
+    PENDING: "bg-amber-50 text-amber-800",
+    PAID: "bg-emerald-50 text-emerald-800",
+    PROCESSING: "bg-blue-50 text-blue-800",
+    SHIPPED: "bg-indigo-50 text-indigo-800",
+    COMPLETED: "bg-emerald-50 text-emerald-800",
+    CANCELLED: "bg-red-50 text-red-700",
+  };
+
+  return classes[status] ?? "bg-stone-100 text-stone-700";
+}
+
 export default function OrdersPage() {
+  const queryClient = useQueryClient();
+
+  const {
+    mutate: cancel,
+    isPending: isCancelling,
+    variables: cancellingOrderId,
+  } = useMutation({
+    mutationFn: cancelOrder,
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["orders"],
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ["products"],
+      });
+    },
+  });
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["orders"],
     queryFn: getOrders,
   });
 
   const orders = data?.data ?? [];
+
+  const totalHistorical = orders.reduce(
+    (total, order) => total + order.total,
+    0,
+  );
+
+  const totalCancelled = orders
+    .filter((order) => order.status === "CANCELLED")
+    .reduce((total, order) => total + order.total, 0);
+
+  const totalActive = orders
+    .filter((order) => order.status !== "CANCELLED")
+    .reduce((total, order) => total + order.total, 0);
+
+  function handleCancelOrder(orderId: number) {
+    const confirmed = window.confirm(
+      "Deseja realmente cancelar este pedido? O estoque dos produtos será restaurado.",
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    cancel(orderId);
+  }
 
   return (
     <main className="min-h-screen bg-stone-50">
@@ -66,6 +124,52 @@ export default function OrdersPage() {
             <Button type="button">+ Novo pedido</Button>
           </Link>
         </div>
+
+        {!isLoading && !isError && orders.length > 0 && (
+          <section className="mb-8 grid gap-4 md:grid-cols-3">
+            <div className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">
+                Total histórico
+              </p>
+
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+                {formatCurrency(totalHistorical)}
+              </p>
+
+              <p className="mt-1 text-xs text-stone-500">
+                Valor de todos os pedidos realizados
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/40 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                Pedidos ativos
+              </p>
+
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+                {formatCurrency(totalActive)}
+              </p>
+
+              <p className="mt-1 text-xs text-stone-500">
+                Valor desconsiderando cancelamentos
+              </p>
+            </div>
+
+            <div className="rounded-xl border border-red-200 bg-red-50/40 p-5 shadow-sm">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-red-700">
+                Cancelados
+              </p>
+
+              <p className="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+                {formatCurrency(totalCancelled)}
+              </p>
+
+              <p className="mt-1 text-xs text-stone-500">
+                Valor histórico de pedidos cancelados
+              </p>
+            </div>
+          </section>
+        )}
 
         {isLoading && (
           <div className="space-y-4">
@@ -130,7 +234,11 @@ export default function OrdersPage() {
                           Pedido #{order.id}
                         </h2>
 
-                        <span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${getStatusClass(
+                            order.status,
+                          )}`}
+                        >
                           {getStatusLabel(order.status)}
                         </span>
                       </div>
@@ -195,12 +303,26 @@ export default function OrdersPage() {
                       ))}
                     </div>
 
-                    <div className="mt-5 flex justify-end">
+                    <div className="mt-5 flex flex-wrap justify-end gap-3">
                       <Link href={`/orders/${order.id}`}>
                         <Button type="button" variant="outline">
                           Ver detalhes
                         </Button>
                       </Link>
+
+                      {order.status === "PENDING" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={isCancelling}
+                          onClick={() => handleCancelOrder(order.id)}
+                          className="border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800"
+                        >
+                          {isCancelling && cancellingOrderId === order.id
+                            ? "Cancelando..."
+                            : "Cancelar pedido"}
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </article>

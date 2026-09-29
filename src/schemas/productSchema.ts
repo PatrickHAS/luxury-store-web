@@ -34,7 +34,6 @@ export const productSchema = z.object({
     ),
 
   sku: z.string().min(1, "O SKU é obrigatório."),
-
   categoryId: z.string().min(1, "A categoria é obrigatória."),
 });
 

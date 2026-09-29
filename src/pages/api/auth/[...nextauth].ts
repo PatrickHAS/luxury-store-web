@@ -1,27 +1,6 @@
 import NextAuth from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 
-interface AccessTokenPayload {
-  userId?: number;
-  role?: string;
-}
-
-function decodeAccessToken(token: string): AccessTokenPayload {
-  try {
-    const payload = token.split(".")[1];
-
-    if (!payload) {
-      return {};
-    }
-
-    return JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8"),
-    ) as AccessTokenPayload;
-  } catch {
-    return {};
-  }
-}
-
 export default NextAuth({
   providers: [
     CredentialsProvider({
@@ -63,13 +42,12 @@ export default NextAuth({
 
         const data = await response.json();
 
-        const payload = decodeAccessToken(data.accessToken);
-
         return {
-          id: credentials.email,
-          email: credentials.email,
+          id: String(data.user.id),
+          name: data.user.name ?? data.user.email,
+          email: data.user.email,
           accessToken: data.accessToken,
-          role: payload.role,
+          role: data.user.role,
         };
       },
     }),

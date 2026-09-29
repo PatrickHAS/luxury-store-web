@@ -1,16 +1,20 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { LoginFormData, loginSchema } from "@/schemas/LoginSchema";
 
-export default function LoginPage() {
+function LoginContent() {
   const [loginError, setLoginError] = useState("");
+  const searchParams = useSearchParams();
+  const registered = searchParams?.get("registered") === "true";
 
   const {
     register,
@@ -119,6 +123,14 @@ export default function LoginPage() {
 
             {/* Formulário */}
 
+            {registered && (
+              <div className="mb-6 rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3">
+                <p className="text-sm font-medium text-emerald-800">
+                  Conta criada com sucesso. Faça login para continuar.
+                </p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit(handleLogin)} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-stone-700">
@@ -175,6 +187,27 @@ export default function LoginPage() {
               </Button>
             </form>
 
+            <div className="mt-8 border-t border-stone-200 pt-6 text-center">
+              <p className="text-sm text-stone-500">
+                Ainda não possui uma conta?{" "}
+                <Link
+                  href="/register"
+                  className="font-semibold text-stone-950 hover:underline"
+                >
+                  Criar conta
+                </Link>
+              </p>
+            </div>
+
+            <div className="mt-6 text-center">
+              <Link
+                href="/"
+                className="text-xs font-medium text-stone-400 transition hover:text-stone-700"
+              >
+                ← Voltar para a loja
+              </Link>
+            </div>
+
             <div className="mt-8 border-t border-stone-200 pt-6">
               <p className="text-center text-xs text-stone-400">
                 Luxury Store · Sistema de gerenciamento
@@ -184,5 +217,19 @@ export default function LoginPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-stone-50">
+          <p className="text-sm text-stone-500">Carregando...</p>
+        </main>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

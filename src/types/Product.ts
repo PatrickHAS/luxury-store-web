@@ -6,6 +6,7 @@ export interface Product {
   stock: number;
   sku: string;
   active: boolean;
+  imageUrl?: string | null;
   categoryId: number;
   createdAt: string;
   updatedAt: string;
